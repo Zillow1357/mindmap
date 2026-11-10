@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1f6feb">
+<meta name="description" content="結合卡片關聯與記憶組塊的間隔複習工具">
+<title>組塊記憶 · 間隔複習</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--fg:#1d2330;--mut:#6b7385;--line:#e3e6ec;--acc:#1f6feb;--acc2:#e8f0fe;--red:#d64545;--org:#c27a12;--grn:#2e9e5b;--shadow:0 1px 3px rgba(0,0,0,.07)}
+@media (prefers-color-scheme:dark){:root{--bg:#111318;--card:#1a1d24;--fg:#e7e9ee;--mut:#9aa2b2;--line:#2b303b;--acc:#5b9bff;--acc2:#1d2a40;--shadow:none}}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif;background:var(--bg);color:var(--fg);line-height:1.5;-webkit-text-size-adjust:100%}
+header{position:sticky;top:0;z-index:5;background:var(--card);border-bottom:1px solid var(--line);padding-top:env(safe-area-inset-top)}
+.bar{max-width:760px;margin:0 auto;padding:10px 14px 0}
+.bar h1{font-size:17px;margin:0}
+.bar p{margin:0;font-size:12px;color:var(--mut)}
+nav{max-width:760px;margin:0 auto;display:flex}
+nav button{flex:1;background:none;border:0;border-bottom:2px solid transparent;padding:10px 4px;color:var(--mut);font:inherit;font-size:14px;cursor:pointer}
+nav button.on{color:var(--acc);border-color:var(--acc);font-weight:600}
+main{max-width:760px;margin:0 auto;padding:14px 14px 80px}
+section{display:none}section.on{display:block}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px;box-shadow:var(--shadow)}
+h2{font-size:15px;margin:0 0 10px}
+h3{font-size:14px;margin:14px 0 6px}
+label{display:block;font-size:13px;color:var(--mut);margin:10px 0 4px}
+label.inline{display:flex;align-items:center;color:var(--fg);font-size:14px}
+input,textarea,select{width:100%;font:inherit;font-size:16px;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg)}
+textarea{resize:vertical}
+input[type=checkbox]{width:18px;height:18px;margin:0 8px 0 0;flex:none}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:8px;padding:9px 14px;font:inherit;font-size:14px;cursor:pointer}
+.btn.pri{background:var(--acc);border-color:var(--acc);color:#fff}
+.btn.sm{padding:4px 10px;font-size:13px}
+.btn.danger{color:var(--red)}
+.wide{width:100%;margin-top:12px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.grow{flex:1;min-width:0}
+.mut{color:var(--mut);font-size:13px}
+.badge{display:inline-block;font-size:12px;padding:1px 8px;border-radius:99px;background:var(--acc2);color:var(--acc);white-space:nowrap}
+.badge.ok{background:rgba(46,158,91,.14);color:var(--grn)}
+.badge.warn{background:rgba(194,122,18,.14);color:var(--org)}
+.badge.bad{background:rgba(214,69,69,.13);color:var(--red)}
+.tag{font-size:12px;color:var(--mut)}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat{background:var(--bg);border-radius:10px;padding:10px 4px;text-align:center}
+.stat b{display:block;font-size:22px}
+.stat span{font-size:12px;color:var(--mut)}
+.note{background:var(--bg);border-radius:8px;padding:8px 10px;font-size:14px;margin:10px 0 0}
+.done{text-align:center;margin:16px 0 4px}
+#qcard .q{font-size:20px;font-weight:600;white-space:pre-wrap;margin:10px 0 14px}
+#qcard .a{font-size:18px;white-space:pre-wrap;border-top:1px dashed var(--line);padding-top:12px;margin-top:8px}
+.typed{font-size:15px;margin-bottom:6px}
+.grades{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px}
+.grades button{border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:10px;padding:10px 2px;font:inherit;font-size:15px;cursor:pointer}
+.grades button small{display:block;color:var(--mut);font-size:11px}
+.grades button.sug{outline:2px solid var(--acc);outline-offset:-1px}
+.grades .g1{color:var(--red)}
+.list .it{padding:10px 0;border-bottom:1px solid var(--line);cursor:pointer}
+.list .it:last-child{border:0}
+.clip{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chk{display:flex;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--line);margin:0;color:var(--fg);font-size:15px}
+.sug{border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:8px}
+.sug select,.sug input{margin:6px 0;font-size:14px;padding:6px 8px}
+.lk{padding:6px 0;border-bottom:1px solid var(--line);font-size:14px}
+canvas{width:100%;height:420px;display:block;background:var(--bg);border-radius:10px;touch-action:none}
+.legend{display:flex;flex-wrap:wrap;gap:10px;font-size:12px;color:var(--mut);margin-top:8px}
+.legend i{display:inline-block;width:16px;height:0;border-top:3px solid;vertical-align:middle;margin-right:4px}
+.bars{display:flex;align-items:flex-end;gap:3px;height:110px;padding-top:16px}
+.bars div{flex:1;background:var(--acc);border-radius:3px 3px 0 0;min-height:1px;position:relative}
+.bars em{position:absolute;top:-16px;left:0;right:0;text-align:center;font-size:10px;font-style:normal;color:var(--mut)}
+details summary{cursor:pointer;color:var(--acc);margin-top:12px;font-size:14px}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#222;color:#fff;padding:9px 16px;border-radius:99px;font-size:14px;opacity:0;transition:opacity .25s;pointer-events:none;z-index:30;max-width:90vw;text-align:center}
+.toast.on{opacity:.95}
+dialog{border:0;border-radius:14px;padding:0;width:min(560px,94vw);background:var(--card);color:var(--fg)}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+.dlg{padding:16px;max-height:86vh;overflow:auto}
+footer{text-align:center;font-size:12px;color:var(--mut);padding:10px}
+</style>
+</head>
+<body>
+<header>
+  <div class="bar"><h1>組塊記憶</h1><p>間隔複習 × 卡片關聯 × 記憶組塊</p></div>
+  <nav>
+    <button data-act="tab" data-v="review" class="on">複習</button>
+    <button data-act="tab" data-v="cards">卡片</button>
+    <button data-act="tab" data-v="links">關聯與組塊</button>
+    <button data-act="tab" data-v="stats">統計設定</button>
+  </nav>
+</header>
+
+<main>
+<section id="v-review" class="on"></section>
+
+<section id="v-cards">
+  <div class="panel">
+    <h2>新增卡片</h2>
+    <label for="f-front">正面（問題）</label><textarea id="f-front" rows="2"></textarea>
+    <label for="f-back">背面（答案）</label><textarea id="f-back" rows="2"></textarea>
+    <label for="f-tags">標籤（空白或逗號分隔）</label><input id="f-tags">
+    <label for="f-vars">其他問法（每行一組：問題 | 答案；複習時隨機出其中一種）</label>
+    <textarea id="f-vars" rows="2" placeholder="克氏循環在哪裡進行？ | 粒線體基質"></textarea>
+    <label class="inline"><input type="checkbox" id="f-rev">同時建立反向卡（設為「同義」，自動錯開複習日）</label>
+    <button class="btn pri wide" data-act="addCard">新增</button>
+    <details>
+      <summary>批次匯入</summary>
+      <p class="mut">每行一張：問題 | 答案（也接受 Tab 分隔，可直接從試算表貼上）</p>
+      <textarea id="f-bulk" rows="5"></textarea>
+      <button class="btn wide" data-act="bulk">匯入</button>
+    </details>
+  </div>
+  <div class="panel">
+    <h2>所有卡片 <span id="c-count" class="mut"></span></h2>
+    <input id="c-search" placeholder="搜尋問題、答案或標籤…">
+    <div id="c-list" class="list"></div>
+  </div>
+</section>
+
+<section id="v-links">
+  <div class="panel">
+    <h2>知識圖譜</h2>
+    <canvas id="graph"></canvas>
+    <div class="legend" id="legend"></div>
+    <div id="g-info" class="mut" style="margin-top:8px"></div>
+  </div>
+  <div class="panel"><h2>組塊候選</h2><div id="chunks"></div></div>
+  <div class="panel"><h2>關聯建議</h2><div id="sugs"></div></div>
+</section>
+
+<section id="v-stats">
+  <div class="panel"><h2>統計</h2><div id="st"></div><h3>未來 14 天複習量</h3><div id="fc"></div></div>
+  <div class="panel">
+    <h2>設定</h2>
+    <label for="s-new">每日新卡上限</label><input type="number" id="s-new" min="0" max="500">
+    <label for="s-max">每日複習上限（超過就進入回歸模式，分散到之後幾天）</label><input type="number" id="s-max" min="10" max="5000">
+    <label for="s-ret">目標記憶保留率</label>
+    <select id="s-ret"><option value="0.85">85%（複習較少）</option><option value="0.9">90%（建議）</option><option value="0.95">95%（複習較多）</option></select>
+    <label for="s-exam">考試日期（選填；14 天內自動進入考前衝刺）</label><input type="date" id="s-exam">
+    <label class="inline"><input type="checkbox" id="s-rt">依反應時間校正自評（太慢時「簡單」改記為「良好」）</label>
+  </div>
+  <div class="panel">
+    <h2>資料</h2>
+    <p class="mut">資料只存在這個瀏覽器（localStorage）。換裝置或清除瀏覽資料前，請先匯出備份。</p>
+    <div class="row">
+      <button class="btn" data-act="export">匯出 JSON</button>
+      <button class="btn" data-act="import">匯入 JSON</button>
+      <button class="btn" data-act="sample">載入範例</button>
+      <button class="btn danger" data-act="reset">清除全部</button>
+    </div>
+    <input type="file" id="file" accept=".json,application/json" hidden>
+  </div>
+  <footer>快捷鍵：Enter 顯示答案・1～4 評分・空白鍵採用建議評分</footer>
+</section>
+</main>
+
+<dialog id="dlg"><div class="dlg" id="dlg-body"></div></dialog>
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+/* ---------- 基本工具 ---------- */
+const KEY = 'chunk-sr-v1', DAY = 864e5, HOUR = 36e5;
+const TYPES = {
+  prereq:  { name: '前置',   color: '#e0912f', arrow: true },
+  part:    { name: '部分',   color: '#3b82f6', arrow: true },
+  cause:   { name: '因果',   color: '#8e6cf0', arrow: true },
+  example: { name: '實例',   color: '#22a39a', arrow: true },
+  confuse: { name: '易混淆', color: '#e5484d', dash: [5, 4] },
+  same:    { name: '同義',   color: '#9aa2b2', dash: [2, 3] }
+};
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
+const uid = () => Math.random().toString(36).slice(2, 9) + Date.now().toString(36).slice(-4);
+const now = () => Date.now();
+const short = (s, n = 18) => { s = String(s || '').replace(/\s+/g, ' '); return s.length > n ? s.slice(0, n) + '…' : s; };
+const median = a => { if (!a || !a.length) return 0; const b = [...a].sort((x, y) => x - y); return b[Math.floor(b.length / 2)]; };
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const pairKey = (a, b) => [a, b].sort().join('|');
+const splitTags = s => s.split(/[,，\s]+/).map(x => x.trim().replace(/^#/, '')).filter(Boolean);
+let toastTimer;
+function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('on'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('on'), 2600); }
+
+/* ---------- 資料 ---------- */
+function blank() { return { cards: [], links: [], settings: { dailyNew: 10, maxReviews: 120, retention: 0.9, examDate: '', rtCalib: true }, daily: {}, suggest: [], dismissed: [] }; }
+function load() {
+  try {
+    const s = JSON.parse(localStorage.getItem(KEY));
+    if (s && Array.isArray(s.cards)) { const b = blank(); return Object.assign(b, s, { settings: Object.assign(b.settings, s.settings || {}) }); }
+  } catch (e) {}
+  return blank();
+}
+let db = load();
+function save() { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch (e) { toast('無法儲存到瀏覽器：' + e.message); } }
+let idx = new Map();
+function reindex() { idx = new Map(db.cards.map(c => [c.id, c])); }
+reindex();
+const byId = id => idx.get(id);
+let seq = 0;
+function newCard(o) {
+  return { id: uid(), front: o.front, back: o.back || '', tags: o.tags || [], variants: o.variants || [], kind: o.kind || 'basic',
+    members: o.members || [], ordered: !!o.ordered, created: now() + (seq++), state: 'new', S: 0, D: 0, due: 0, last: 0,
+    reps: 0, lapses: 0, rts: [], hist: [], subsumed: false, buriedUntil: 0 };
+}
+
+/* 一天從凌晨 4 點開始算 */
+function dayStart(t = now()) { const d = new Date(t - 4 * HOUR); d.setHours(0, 0, 0, 0); return d.getTime() + 4 * HOUR; }
+function dayKey(t = now()) { const d = new Date(dayStart(t)); return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`; }
+function today() { const k = dayKey(); return db.daily[k] || (db.daily[k] = { rev: 0, new: 0, again: 0 }); }
+
+/* ---------- 記憶模型（簡化版 FSRS） ---------- */
+function examTs() { const s = db.settings.examDate; if (!s) return 0; const d = new Date(s + 'T00:00:00'); return isNaN(d) ? 0 : d.getTime(); }
+function targetR(t = now()) { let r = +db.settings.retention || 0.9; const ex = examTs(); if (ex && ex > t && ex - t < 14 * DAY) r = Math.max(r, 0.95); return r; }
+const Rf = (days, S) => 1 / (1 + days / (9 * S));
+function retr(c, t = now()) { if (c.state === 'new' || !c.S) return 0; return Rf(Math.max(0, (t - c.last) / DAY), c.S); }
+const initS = [0.4, 1.2, 3, 8];
+const nextD = (D, g) => clamp(0.9 * (D - 0.8 * (g - 3)) + 0.5, 1, 10);
+const succS = (S, D, r, g) => S * (1 + Math.exp(1.5) * (11 - D) * Math.pow(S, -0.15) * (Math.exp(1 - r) - 1) * (g === 2 ? 0.3 : g === 4 ? 1.4 : 1));
+const lapseS = (S, D, r) => clamp(1.9 * Math.pow(D, -0.1) * (Math.pow(S + 1, 0.3) - 1) * Math.exp(2.2 * (1 - r)), 0.1, Math.max(0.1, S));
+
+function preview(c, g, t = now()) {
+  let S, D;
+  if (c.state === 'new') { S = initS[g - 1]; D = clamp(9.5 - 1.5 * g, 1, 10); }
+  else { const r = retr(c, t), d0 = c.D || 5; D = nextD(d0, g); S = g === 1 ? lapseS(c.S, d0, r) : Math.max(succS(c.S, d0, r, g), c.S); }
+  if (g === 1) return { S, D, days: 0, due: t + 10 * 60e3 };
+  let days = 9 * S * (1 / targetR(t) - 1);
+  if (c.subsumed) days *= 3;                       // 已併入組塊：單獨複習頻率降低
+  days = Math.max(1, days);
+  const ex = examTs();                              // 考前衝刺：間隔不超過考試前一天
+  if (ex && ex > t) { const left = (ex - dayStart(t)) / DAY; if (left >= 2 && days > left - 1) days = left - 1; }
+  days = Math.max(1, Math.round(days));
+  return { S, D, days, due: dayStart(t) + days * DAY };
+}
+function fmtIvl(d) { if (!d) return '10 分鐘'; if (d < 30) return d + ' 天'; if (d < 365) return (+(d / 30).toFixed(1)) + ' 個月'; return (+(d / 365).toFixed(1)) + ' 年'; }
+
+/* ---------- 相似度 ---------- */
+const norm = s => (s || '').toLowerCase().replace(/[\s\p{P}\p{S}]/gu, '');
+function lev(a, b) {
+  if (a === b) return 0; const m = a.length, n = b.length; if (!m) return n; if (!n) return m;
+  let prev = Array.from({ length: n + 1 }, (_, j) => j), cur = new Array(n + 1);
+  for (let i = 1; i <= m; i++) { cur[0] = i; for (let j = 1; j <= n; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1)); [prev, cur] = [cur, prev]; }
+  return prev[n];
+}
+function sim(a, b) { a = norm(a).slice(0, 300); b = norm(b).slice(0, 300); if (!a && !b) return 1; if (!a || !b) return 0; return 1 - lev(a, b) / Math.max(a.length, b.length); }
+function grams(s) { s = norm(s); const g = new Set(); for (let i = 0; i < s.length - 1; i++) g.add(s.slice(i, i + 2)); return g; }
+function jac(A, B) { if (!A.size || !B.size) return 0; let x = 0; for (const g of A) if (B.has(g)) x++; return x / (A.size + B.size - x); }
+
+/* ---------- 關聯 ---------- */
+function neighbors(id, type) { const o = []; for (const l of db.links) { if (type && l.type !== type) continue; if (l.a === id) o.push(l.b); else if (l.b === id) o.push(l.a); } return o; }
+const prereqsOf = id => db.links.filter(l => l.type === 'prereq' && l.b === id).map(l => l.a);
+const prereqReady = c => prereqsOf(c.id).every(pid => { const p = byId(pid); return !p || (p.state === 'review' && p.S >= 2); });
+const linked = (a, b) => db.links.some(l => (l.a === a && l.b === b) || (l.a === b && l.b === a));
+function addLink(a, b, type) {
+  if (!a || !b || a === b) return false;
+  const sym = type === 'confuse' || type === 'same';
+  if (db.links.some(l => l.type === type && ((l.a === a && l.b === b) || (sym && l.a === b && l.b === a)))) return false;
+  db.links.push({ id: uid(), a, b, type });
+  const k = pairKey(a, b); db.suggest = db.suggest.filter(s => pairKey(s.a, s.b) !== k);
+  return true;
+}
+function addSuggest(a, b, type, why, score = 1) {
+  const k = pairKey(a, b);
+  if (a === b || linked(a, b) || db.dismissed.includes(k) || db.suggest.some(s => pairKey(s.a, s.b) === k)) return false;
+  db.suggest.push({ id: uid(), a, b, type, why, score }); return true;
+}
+function relSentence(type, A, B) {
+  return ({ prereq: `「${A}」是「${B}」的前置`, part: `「${A}」是「${B}」的一部分`, cause: `「${A}」導致「${B}」`, example: `「${A}」是「${B}」的實例`,
+    confuse: `「${A}」與「${B}」容易混淆`, same: `「${A}」與「${B}」是同一件事的不同說法` })[type] || '';
+}
+function relOptions(A, B) {
+  const o = [];
+  for (const t of ['prereq', 'part', 'cause', 'example']) { o.push([t + ':ab', relSentence(t, A, B)]); o.push([t + ':ba', relSentence(t, B, A)]); }
+  o.push(['confuse:ab', relSentence('confuse', A, B)]); o.push(['same:ab', relSentence('same', A, B) + '（錯開複習）']);
+  return o;
+}
+function applyRel(a, b, val) { const [type, dir] = val.split(':'); return dir === 'ba' ? addLink(b, a, type) : addLink(a, b, type); }
+
+/* ---------- 排程：建立今日佇列 ---------- */
+function futureLoad() { const t0 = dayStart(); let n = 0; for (const c of db.cards) if (c.state !== 'new' && c.due >= t0 + DAY && c.due < t0 + 8 * DAY) n++; return n / 7; }
+function buildQueue() {
+  const t = now(), st = db.settings, td = today(), dk = dayKey(t);
+  const due = db.cards.filter(c => c.state !== 'new' && c.due <= t && (c.buriedUntil || 0) <= t).sort((a, b) => retr(a, t) - retr(b, t)); // 最容易忘的先
+  const revLeft = Math.max(0, st.maxReviews - td.rev);
+  const overflow = Math.max(0, due.length - revLeft);
+  const reviews = due.slice(0, revLeft).map(c => ({ id: c.id, reason: c.state === 'learning' ? '學習中' : '' }));
+  const want = Math.max(0, st.dailyNew - td.new);
+  const cap = Math.max(0, Math.floor((st.maxReviews - futureLoad()) / 5)); // 依未來負荷反推可加的新卡數
+  const newLeft = Math.min(want, cap);
+  const fresh = db.cards.filter(c => c.state === 'new' && (c.buriedUntil || 0) <= t).sort((a, b) => a.created - b.created);
+  const readyNew = fresh.filter(prereqReady);
+  const chosen = [], seen = new Set(reviews.map(r => r.id));
+  for (const c of readyNew) { if (chosen.length >= newLeft) break; if (neighbors(c.id, 'same').some(x => seen.has(x))) continue; chosen.push({ id: c.id, reason: '新卡' }); seen.add(c.id); }
+  const items = []; let ni = 0;
+  reviews.forEach((r, i) => { items.push(r); if (i % 4 === 3 && ni < chosen.length) items.push(chosen[ni++]); });
+  while (ni < chosen.length) items.push(chosen[ni++]);
+  // 易混淆的卡：安排成相鄰的對比練習
+  const inQ = new Set(items.map(i => i.id)), out = [];
+  for (const it of items) {
+    out.push(it);
+    for (const oid of neighbors(it.id, 'confuse')) {
+      const o = byId(oid);
+      if (o && o.state !== 'new' && (o.buriedUntil || 0) <= t && !inQ.has(oid) && o.lastDay !== dk) { out.push({ id: oid, reason: '對比練習' }); inQ.add(oid); break; }
+    }
+  }
+  // 同義卡（例如正反向）同一天只出一張
+  const final = [], q = new Set();
+  for (const it of out) { if (neighbors(it.id, 'same').some(x => q.has(x))) continue; final.push(it); q.add(it.id); }
+  return { items: final, overflow, blocked: fresh.length - readyNew.length, limitedByLoad: cap < want && fresh.length > newLeft };
+}
+
+/* ---------- 複習流程 ---------- */
+const S = { items: [], cur: null, phase: 'home', t0: 0, rt: 0, typed: '', simv: null, variant: null, checks: null };
+function startSession() { S.items = buildQueue().items; next(); }
+function next() {
+  while (S.items.length) {
+    const it = S.items.shift(), c = byId(it.id); if (!c) continue;
+    S.cur = it; setupVariant(c); S.phase = 'q'; S.t0 = now(); S.typed = ''; S.simv = null; renderReview(); return;
+  }
+  S.cur = null; S.phase = 'home'; renderReview();
+}
+function setupVariant(c) {
+  if (c.kind === 'chunk') {
+    const ms = c.members.map(byId).filter(Boolean); let start = 0;
+    if (c.ordered && ms.length >= 3 && Math.random() < 0.4) start = 1 + Math.floor(Math.random() * (ms.length - 2)); // 從中間開始，避免只會照順序背
+    S.variant = { q: start ? `從「${ms[start].front}」開始，依序回想「${c.front}」剩下的部分` : `完整回想「${c.front}」（共 ${ms.length} 項${c.ordered ? '，照順序' : ''}）`, list: ms.slice(start) };
+    S.checks = S.variant.list.map(() => true);
+  } else {
+    const vs = [{ q: c.front, a: c.back }, ...(c.variants || [])];
+    S.variant = vs[Math.floor(Math.random() * vs.length)]; S.checks = null;
+  }
+}
+function reveal() {
+  if (S.phase !== 'q') return;
+  const c = byId(S.cur.id); if (!c) return next();
+  S.rt = (now() - S.t0) / 1000;
+  const inp = $('#ans'); S.typed = inp ? inp.value.trim() : '';
+  S.simv = null;
+  if (S.typed && c.kind !== 'chunk') { S.simv = sim(S.typed, S.variant.a); if (S.simv < 0.6) detectConfusion(c, S.typed); }
+  S.phase = 'a'; renderReview();
+}
+function suggestGrade(c) {
+  if (c.kind === 'chunk') { const n = S.checks.length, k = S.checks.filter(Boolean).length; if (k === n) return S.rt <= 4 * n ? 4 : 3; if (k / n >= 0.7) return 2; return 1; }
+  if (S.simv == null) return 0;
+  if (S.simv >= 0.85) return S.rt <= 6 + (S.variant.a || '').length * 0.8 ? 4 : 3;
+  if (S.simv >= 0.6) return 2;
+  return 1;
+}
+function detectConfusion(c, typed) {
+  for (const o of db.cards) {
+    if (o.id === c.id || o.kind === 'chunk') continue;
+    if (sim(typed, o.back) >= 0.85) {
+      if (addSuggest(c.id, o.id, 'confuse', `複習「${short(c.front)}」時，你寫出了「${short(o.front)}」的答案`)) { save(); toast('偵測到可能的混淆，已加入關聯建議'); }
+      break;
+    }
+  }
+}
+function creditNeighbors(c, t) {                    // 複習 A 也稍微練到相關的 B：B 小幅延後
+  const dk = dayKey(t);
+  for (const l of db.links) {
+    if (!['part', 'cause', 'example'].includes(l.type)) continue;
+    const oid = l.a === c.id ? l.b : l.b === c.id ? l.a : null; if (!oid) continue;
+    const o = byId(oid); if (!o || o.state !== 'review' || o.creditDay === dk) continue;
+    const ext = Math.min(DAY, 0.05 * (o.due - o.last)); if (ext > 0) { o.due += ext; o.creditDay = dk; }
+  }
+}
+function grade(g) {
+  const c = byId(S.cur && S.cur.id); if (!c) return next();
+  const t = now();
+  if (db.settings.rtCalib && g === 4 && S.simv == null && c.kind !== 'chunk') {
+    const lim = Math.max(12, 2 * median(c.rts || []));
+    if (S.rt > lim) { g = 3; toast('反應偏慢，「簡單」改記為「良好」'); }
+  }
+  const wasNew = c.state === 'new', p = preview(c, g, t), td = today();
+  Object.assign(c, { S: p.S, D: p.D, due: p.due, last: t, reps: c.reps + 1, lastDay: dayKey(t) });
+  if (g === 1) { if (!wasNew) c.lapses++; c.state = 'learning'; td.again++; } else c.state = 'review';
+  if (wasNew) td.new++; else td.rev++;
+  const rt = Math.round(S.rt * 10) / 10;
+  c.rts = [...(c.rts || []), rt].slice(-5);
+  c.hist = [...(c.hist || []), { t, g, rt, s: S.simv == null ? undefined : Math.round(S.simv * 100) / 100 }].slice(-60);
+  for (const sid of neighbors(c.id, 'same')) { const s = byId(sid); if (s) s.buriedUntil = dayStart(t) + DAY; S.items = S.items.filter(i => i.id !== sid); }
+  if (g === 1) {
+    S.items.splice(Math.min(3, S.items.length), 0, { id: c.id, reason: '重來' });
+    let k = 0;                                       // 錯誤傳播：先補強還不穩的前置卡
+    for (const pid of prereqsOf(c.id)) {
+      const pc = byId(pid);
+      if (k < 2 && pc && pc.state !== 'new' && retr(pc, t) < 0.95 && !S.items.some(i => i.id === pid)) { S.items.unshift({ id: pid, reason: `前置補強：「${short(c.front, 12)}」答錯` }); k++; }
+    }
+  } else creditNeighbors(c, t);
+  if (c.kind === 'chunk') {                          // 組塊拆解：只把沒想起來的成員退回去練
+    S.variant.list.forEach((m, i) => {
+      if (S.checks[i]) return;
+      m.due = t; if (m.state === 'review') m.state = 'learning';
+      if (!S.items.some(x => x.id === m.id)) S.items.unshift({ id: m.id, reason: '組塊拆解：補強這一項' });
+    });
+  }
+  save(); next();
+}
+
+/* ---------- 畫面：複習 ---------- */
+function renderReview() {
+  const el = $('#v-review');
+  if (S.phase === 'home' || !S.cur) {
+    const q = buildQueue(), td = today(), t = now();
+    const nNew = q.items.filter(i => i.reason === '新卡').length, nRev = q.items.length - nNew;
+    const tmr = db.cards.filter(c => c.state !== 'new' && c.due >= dayStart(t) + DAY && c.due < dayStart(t) + 2 * DAY).length;
+    const notes = [], ex = examTs();
+    if (ex && ex > t) { const d = Math.ceil((ex - dayStart(t)) / DAY); notes.push(`📅 距離考試 ${d} 天${d <= 14 ? '：考前衝刺已啟動，目標保留率提高到 95%，間隔都會落在考試前' : ''}`); }
+    if (q.overflow) notes.push(`↩️ 回歸模式：有 ${q.overflow} 張到期卡超過今日上限。已優先安排最容易忘的，其餘留到之後幾天，不用一次清完。`);
+    if (q.limitedByLoad) notes.push('⚖️ 未來一週的複習量偏高，今天的新卡數已自動調降。');
+    if (q.blocked) notes.push(`🔒 ${q.blocked} 張新卡正在等前置卡穩定後才會出現。`);
+    if (!db.cards.length) notes.push('還沒有卡片。到「卡片」新增，或到「統計設定」載入範例。');
+    el.innerHTML = `<div class="panel"><div class="stats">
+      <div class="stat"><b>${nRev}</b><span>待複習</span></div>
+      <div class="stat"><b>${nNew}</b><span>新卡</span></div>
+      <div class="stat"><b>${td.rev + td.new}</b><span>今日已完成</span></div></div>
+      ${notes.map(n => `<p class="note">${esc(n)}</p>`).join('')}
+      ${q.items.length ? `<button class="btn pri wide" data-act="start">開始複習（${q.items.length}）</button>` : (db.cards.length ? `<p class="done">今天的份量完成了 🎉<br><span class="mut">明天預計 ${tmr} 張</span></p>` : '')}
+    </div>`;
+    return;
+  }
+  const c = byId(S.cur.id); if (!c) return next();
+  const v = S.variant, isChunk = c.kind === 'chunk', reason = S.cur.reason;
+  const head = `<div class="row mut"><span>剩 ${S.items.length + 1} 張</span>
+    ${reason ? `<span class="badge ${/補強|拆解|重來/.test(reason) ? 'warn' : ''}">${esc(reason)}</span>` : ''}
+    ${isChunk ? '<span class="badge ok">組塊</span>' : ''}<span class="grow"></span>
+    <button class="btn sm" data-act="edit" data-id="${c.id}">編輯</button><button class="btn sm" data-act="end">結束</button></div>`;
+  if (S.phase === 'q') {
+    el.innerHTML = `<div class="panel" id="qcard">${head}<div class="q">${esc(v.q)}</div>
+      ${isChunk ? '<p class="mut">先在腦中（或紙上）一次說完，再打開清單對照。</p>' : '<input id="ans" placeholder="輸入答案（可略過；打字評分更客觀）" autocomplete="off" autocapitalize="off" spellcheck="false">'}
+      <button class="btn pri wide" data-act="reveal">顯示答案</button></div>`;
+    if (!isChunk && matchMedia('(pointer:fine)').matches) $('#ans').focus();
+    return;
+  }
+  const sg = suggestGrade(c), names = ['忘了', '困難', '良好', '簡單'];
+  let body;
+  if (isChunk) {
+    body = `<div class="a">${v.list.map((m, i) => `<label class="chk"><input type="checkbox" data-ci="${i}" ${S.checks[i] ? 'checked' : ''}><span><b>${esc(m.front)}</b><br><span class="mut">${esc(m.back)}</span></span></label>`).join('')}
+      <p class="mut">取消勾選沒想起來的項目，只有那幾項會被退回去單獨練習。</p></div>`;
+  } else {
+    const cls = S.simv >= 0.85 ? 'ok' : S.simv >= 0.6 ? 'warn' : 'bad';
+    body = `${S.typed ? `<div class="typed">你的答案：${esc(S.typed)} <span class="badge ${cls}">相似度 ${Math.round(S.simv * 100)}%</span></div>` : ''}<div class="a">${esc(v.a)}</div>`;
+  }
+  el.innerHTML = `<div class="panel" id="qcard">${head}<div class="q">${esc(v.q)}</div>${body}
+    <p class="mut">反應時間 ${S.rt.toFixed(1)} 秒${sg ? `・建議評分：${names[sg - 1]}` : ''}</p>
+    <div class="grades">${[1, 2, 3, 4].map(g => `<button data-act="grade" data-g="${g}" class="g${g}${g === sg ? ' sug' : ''}">${names[g - 1]}<small>${fmtIvl(preview(c, g).days)}</small></button>`).join('')}</div></div>`;
+}
+
+/* ---------- 畫面：卡片 ---------- */
+function parseVariants(text) {
+  return text.split('\n').map(l => l.split(/\s*[|｜]\s*/)).filter(p => p.length >= 2 && p[0].trim() && p.slice(1).join('').trim())
+    .map(p => ({ q: p[0].trim(), a: p.slice(1).join(' | ').trim() }));
+}
+function addCard() {
+  const front = $('#f-front').value.trim(), back = $('#f-back').value.trim();
+  if (!front || !back) return toast('正面和背面都要填');
+  const tags = splitTags($('#f-tags').value), variants = parseVariants($('#f-vars').value);
+  const c = newCard({ front, back, tags, variants }); db.cards.push(c);
+  if ($('#f-rev').checked) { const r = newCard({ front: back, back: front, tags }); db.cards.push(r); addLink(c.id, r.id, 'same'); }
+  reindex(); save();
+  $('#f-front').value = ''; $('#f-back').value = ''; $('#f-vars').value = '';
+  toast('已新增'); renderCards(); $('#f-front').focus();
+}
+function bulk() {
+  const lines = $('#f-bulk').value.split('\n'); let n = 0;
+  for (const line of lines) {
+    const p = line.includes('\t') ? line.split('\t') : line.split(/\s*[|｜]\s*/);
+    if (p.length < 2 || !p[0].trim() || !p.slice(1).join('').trim()) continue;
+    db.cards.push(newCard({ front: p[0].trim(), back: p.slice(1).join(' | ').trim() })); n++;
+  }
+  reindex(); save(); $('#f-bulk').value = ''; toast(`已匯入 ${n} 張`); renderCards();
+}
+function stateBadge(c) {
+  if (c.state === 'new') return '<span class="badge">新</span>';
+  if (c.state === 'learning') return '<span class="badge warn">學習中</span>';
+  const r = retr(c); return `<span class="badge ${r >= 0.9 ? 'ok' : r >= 0.75 ? 'warn' : 'bad'}">記憶 ${Math.round(r * 100)}%</span>`;
+}
+function renderCards() {
+  const q = $('#c-search').value.trim().toLowerCase();
+  let cs = [...db.cards].sort((a, b) => b.created - a.created);
+  if (q) cs = cs.filter(c => (c.front + ' ' + c.back + ' ' + (c.tags || []).join(' ')).toLowerCase().includes(q));
+  $('#c-count').textContent = `（${db.cards.length}）`;
+  $('#c-list').innerHTML = cs.slice(0, 300).map(c => `<div class="it" data-act="edit" data-id="${c.id}">
+    <div class="clip"><b>${esc(c.front)}</b></div><div class="clip mut">${esc(c.back.replace(/\n/g, ' / '))}</div>
+    <div class="row" style="margin-top:4px">${stateBadge(c)}${c.kind === 'chunk' ? '<span class="badge ok">組塊</span>' : ''}${c.subsumed ? '<span class="badge">已併入組塊</span>' : ''}
+    ${neighbors(c.id).length ? `<span class="tag">🔗${neighbors(c.id).length}</span>` : ''}${(c.tags || []).map(t => `<span class="tag">#${esc(t)}</span>`).join('')}</div></div>`).join('')
+    || '<p class="mut">沒有卡片</p>';
+}
+function cardMeta(c) {
+  if (c.state === 'new') return '新卡（尚未學習）' + (c.subsumed ? '・已併入組塊' : '');
+  const d = new Date(c.due);
+  return `穩定度 ${c.S.toFixed(1)} 天・難度 ${c.D.toFixed(1)}・記憶強度 ${Math.round(retr(c) * 100)}%<br>下次複習 ${d.getMonth() + 1}/${d.getDate()}・複習 ${c.reps} 次・忘記 ${c.lapses} 次${c.subsumed ? '<br>已併入組塊：單獨複習的間隔 ×3' : ''}`;
+}
+
+/* ---------- 編輯對話框 ---------- */
+let editId = null;
+function openEdit(id) {
+  const c = byId(id); if (!c) return; editId = id; const isC = c.kind === 'chunk';
+  $('#dlg-body').innerHTML = `<div class="row"><h2 class="grow" style="margin:0">${isC ? '編輯組塊' : '編輯卡片'}</h2><button class="btn sm" data-act="dlgClose">✕</button></div>
+    <label>${isC ? '組塊名稱' : '正面'}</label><textarea id="e-front" rows="2">${esc(c.front)}</textarea>
+    ${isC ? `<label>成員</label><div class="mut">${c.members.map(m => esc(byId(m)?.front || '')).join('<br>')}</div>
+      <label class="inline"><input type="checkbox" id="e-ord" ${c.ordered ? 'checked' : ''}>有順序</label>`
+      : `<label>背面</label><textarea id="e-back" rows="2">${esc(c.back)}</textarea>
+      <label>其他問法（每行：問題 | 答案）</label><textarea id="e-vars" rows="2">${esc((c.variants || []).map(v => v.q + ' | ' + v.a).join('\n'))}</textarea>`}
+    <label>標籤</label><input id="e-tags" value="${esc((c.tags || []).join(' '))}">
+    <p class="mut">${cardMeta(c)}</p>
+    <div class="row"><button class="btn pri" data-act="dlgSave">儲存</button><button class="btn danger" data-act="dlgDel">${isC ? '解散組塊' : '刪除'}</button></div>
+    <h3>關聯</h3><div id="e-links"></div>
+    <label>新增關聯</label>
+    <select id="e-rel">${relOptions('此卡', '目標卡').map(([v, t]) => `<option value="${v}">${esc(t)}</option>`).join('')}</select>
+    <input id="e-q" placeholder="搜尋目標卡…" style="margin-top:6px"><div id="e-res" class="list"></div>`;
+  renderEditLinks();
+  const d = $('#dlg'); if (!d.open) d.showModal();
+}
+function renderEditLinks() {
+  const ls = db.links.filter(l => l.a === editId || l.b === editId);
+  $('#e-links').innerHTML = ls.length ? ls.map(l => `<div class="row lk"><span class="grow">${esc(relSentence(l.type, short(byId(l.a)?.front), short(byId(l.b)?.front)))}</span>
+    <button class="btn sm" data-act="linkDel" data-id="${l.id}">移除</button></div>`).join('') : '<p class="mut">尚無關聯</p>';
+}
+function renderEditSearch() {
+  const q = $('#e-q').value.trim().toLowerCase();
+  if (!q) { $('#e-res').innerHTML = ''; return; }
+  const rs = db.cards.filter(c => c.id !== editId && (c.front + ' ' + c.back).toLowerCase().includes(q)).slice(0, 8);
+  $('#e-res').innerHTML = rs.map(c => `<div class="it" data-act="linkAdd" data-id="${c.id}"><div class="clip">${esc(c.front)}</div></div>`).join('') || '<p class="mut">找不到</p>';
+}
+function dlgSave() {
+  const c = byId(editId); if (!c) return;
+  const f = $('#e-front').value.trim(); if (!f) return toast('內容不能是空的');
+  c.front = f; c.tags = splitTags($('#e-tags').value);
+  if (c.kind === 'chunk') c.ordered = $('#e-ord').checked;
+  else { const b = $('#e-back').value.trim(); if (!b) return toast('內容不能是空的'); c.back = b; c.variants = parseVariants($('#e-vars').value); }
+  save(); $('#dlg').close(); toast('已儲存');
+}
+function deleteCard(id) {
+  const c = byId(id); if (!c) return;
+  db.cards = db.cards.filter(x => x.id !== id);
+  db.links = db.links.filter(l => l.a !== id && l.b !== id);
+  db.suggest = db.suggest.filter(s => s.a !== id && s.b !== id);
+  reindex();
+  if (c.kind === 'chunk') for (const mid of c.members) { const m = byId(mid); if (m && !db.cards.some(x => x.kind === 'chunk' && x.members.includes(mid))) m.subsumed = false; }
+  for (const ch of db.cards.filter(x => x.kind === 'chunk' && x.members.includes(id))) { ch.members = ch.members.filter(m => m !== id); if (ch.members.length < 2) deleteCard(ch.id); }
+  save();
+}
+function dlgDel() {
+  const c = byId(editId); if (!c) return;
+  if (!confirm(c.kind === 'chunk' ? '解散這個組塊？成員卡會恢復正常複習。' : '刪除這張卡和它的所有關聯？')) return;
+  deleteCard(editId); $('#dlg').close(); toast(c.kind === 'chunk' ? '組塊已解散' : '已刪除');
+}
+
+/* ---------- 關聯分析與組塊 ---------- */
+function analyze() {
+  // 1. 常常同一天一起忘記
+  const lap = new Map();
+  for (const c of db.cards) { const ds = new Set((c.hist || []).filter(h => h.g === 1).map(h => dayKey(h.t))); if (ds.size >= 2) lap.set(c.id, ds); }
+  const ids = [...lap.keys()];
+  for (let i = 0; i < ids.length; i++) for (let j = i + 1; j < ids.length; j++) {
+    let n = 0; for (const d of lap.get(ids[i])) if (lap.get(ids[j]).has(d)) n++;
+    if (n >= 2) addSuggest(ids[i], ids[j], 'confuse', `這兩張卡有 ${n} 天是一起被忘記的`);
+  }
+  // 2. 內容相似度（字元雙連詞）
+  const cs = db.cards.filter(c => c.kind !== 'chunk').slice(-400), gs = cs.map(c => grams(c.front + ' ' + c.back)), cand = [];
+  for (let i = 0; i < cs.length; i++) for (let j = i + 1; j < cs.length; j++) { const s = jac(gs[i], gs[j]); if (s >= 0.3) cand.push([s, cs[i].id, cs[j].id]); }
+  cand.sort((x, y) => y[0] - x[0]).slice(0, 15).forEach(([s, a, b]) => addSuggest(a, b, 'related', `內容相似度 ${Math.round(s * 100)}%`, s));
+  save();
+}
+const isStable = m => m.state === 'review' && m.S >= 4 && (!m.rts || !m.rts.length || median(m.rts) <= 10);
+function commonTag(ms) { for (const t of ms[0].tags || []) if (ms.every(m => (m.tags || []).includes(t))) return t; return ''; }
+function topo(ids) {
+  const set = new Set(ids), indeg = new Map(ids.map(i => [i, 0])), out = new Map(ids.map(i => [i, []]));
+  for (const l of db.links) { if (!['prereq', 'cause', 'part', 'example'].includes(l.type) || !set.has(l.a) || !set.has(l.b)) continue; out.get(l.a).push(l.b); indeg.set(l.b, indeg.get(l.b) + 1); }
+  const q = ids.filter(i => !indeg.get(i)).sort((a, b) => byId(a).created - byId(b).created), res = [];
+  while (q.length) { const x = q.shift(); res.push(x); for (const y of out.get(x)) { indeg.set(y, indeg.get(y) - 1); if (!indeg.get(y)) q.push(y); } }
+  for (const i of ids) if (!res.includes(i)) res.push(i);
+  return res.map(byId);
+}
+function chunkCandidates() {
+  const used = new Set(db.cards.filter(c => c.kind === 'chunk').map(c => [...c.members].sort().join('|')));
+  const ok = c => c && !c.subsumed, out = [], parents = new Set();
+  // A. 整體與部分：同一張卡底下有 3～7 個部分
+  const kids = new Map();
+  for (const l of db.links) if (l.type === 'part') { if (!kids.has(l.b)) kids.set(l.b, []); kids.get(l.b).push(l.a); }
+  for (const [pid, ks] of kids) {
+    const ms = ks.map(byId).filter(ok).sort((a, b) => a.created - b.created);
+    if (ms.length < 3 || ms.length > 7) continue;
+    const k = ms.map(m => m.id).sort().join('|'); if (used.has(k)) continue; used.add(k); parents.add(pid);
+    const p = byId(pid);
+    out.push({ label: p ? p.front.replace(/[？?]\s*$/, '') + '的組成' : '', members: ms, src: '整體與部分' });
+  }
+  // B. 用前置／因果／實例串起來的 3～5 張卡
+  const el = new Set(db.cards.filter(ok).map(c => c.id)), adj = new Map();
+  const push = (x, y) => { if (!adj.has(x)) adj.set(x, []); adj.get(x).push(y); };
+  for (const l of db.links) { if (l.type === 'confuse' || l.type === 'same' || !el.has(l.a) || !el.has(l.b)) continue; push(l.a, l.b); push(l.b, l.a); }
+  const seen = new Set();
+  for (const s of adj.keys()) {
+    if (seen.has(s)) continue;
+    const comp = [], st = [s]; seen.add(s);
+    while (st.length) { const x = st.pop(); comp.push(x); for (const y of adj.get(x) || []) if (!seen.has(y)) { seen.add(y); st.push(y); } }
+    if (comp.length < 3 || comp.length > 5 || comp.some(id => parents.has(id))) continue;
+    const k = [...comp].sort().join('|'); if (used.has(k)) continue; used.add(k);
+    const ms = topo(comp), tag = commonTag(ms);
+    out.push({ label: tag ? `${tag}：${short(ms[0].front, 10)}` : short(ms[0].front, 12) + '系列', members: ms, src: '關聯群組' });
+  }
+  return out;
+}
+function promote(cand, label, ordered) {
+  const ms = cand.members, t = now();
+  const ch = newCard({ front: label, back: ms.map((m, i) => `${ordered ? i + 1 + '. ' : '• '}${m.front} → ${m.back}`).join('\n'), kind: 'chunk', members: ms.map(m => m.id), ordered, tags: ['組塊'] });
+  Object.assign(ch, { state: 'review', S: Math.max(1, Math.min(...ms.map(m => m.S || 0))), D: 5, last: t, due: t });
+  db.cards.push(ch); reindex();
+  for (const m of ms) { m.subsumed = true; if (m.state === 'review') m.due = Math.max(m.due, m.last + (m.due - m.last) * 3); }
+  // 組塊卡繼承成員對外的關聯，才能再往上組成更大的組塊
+  const set = new Set(ch.members);
+  for (const l of [...db.links]) { const ina = set.has(l.a), inb = set.has(l.b); if (ina === inb || l.type === 'same') continue; addLink(ina ? ch.id : l.a, inb ? ch.id : l.b, l.type); }
+  save();
+}
+let CANDS = [];
+function renderChunks() {
+  CANDS = chunkCandidates();
+  $('#chunks').innerHTML = CANDS.length ? CANDS.map((c, i) => {
+    const n = c.members.length, ready = c.members.filter(isStable).length;
+    return `<div class="sug"><div class="row"><b class="grow">${esc(c.label || '（未命名）')}</b><span class="badge">${c.src}</span></div>
+      <div class="mut">${c.members.map(m => `${isStable(m) ? '✅' : '⏳'} ${esc(short(m.front, 24))}`).join('<br>')}</div>
+      <input id="ch-l-${i}" value="${esc(c.label)}" placeholder="組塊名稱">
+      <label class="inline"><input type="checkbox" id="ch-o-${i}" checked>有順序（會出「從中間開始」的題目）</label>
+      ${ready === n ? `<button class="btn sm pri" data-act="promote" data-i="${i}">晉升為組塊卡</button>`
+        : `<p class="mut" style="margin:4px 0">${ready}/${n} 張已穩定（已複習、穩定度 ≥ 4 天、回想流暢）。建議全部穩定後再合併。</p><button class="btn sm" data-act="promote" data-i="${i}">仍要提前建立</button>`}</div>`;
+  }).join('') : '<p class="mut">還沒有候選。把 3 張以上的卡設成同一張卡的「一部分」，或用前置／因果把 3～5 張卡串起來，就會出現在這裡。</p>';
+}
+function renderSugs() {
+  db.suggest = db.suggest.filter(s => byId(s.a) && byId(s.b) && !linked(s.a, s.b));
+  const ss = [...db.suggest].sort((a, b) => (b.type === 'confuse') - (a.type === 'confuse') || b.score - a.score);
+  $('#sugs').innerHTML = ss.length ? ss.map(s => {
+    const A = byId(s.a), B = byId(s.b);
+    return `<div class="sug"><div><b>${esc(short(A.front, 24))}</b> ↔ <b>${esc(short(B.front, 24))}</b></div><div class="mut">${esc(s.why)}</div>
+      ${s.type === 'related' ? `<select data-sel="${s.id}">${relOptions(short(A.front, 10), short(B.front, 10)).map(([v, t]) => `<option value="${v}">${esc(t)}</option>`).join('')}</select>`
+        : '<div class="mut">建議關係：容易混淆（之後會排成相鄰的對比練習）</div>'}
+      <div class="row" style="margin-top:6px"><button class="btn sm pri" data-act="sugOk" data-id="${s.id}">接受</button><button class="btn sm" data-act="sugNo" data-id="${s.id}">忽略</button></div></div>`;
+  }).join('') : '<p class="mut">目前沒有建議。系統會從內容相似度、你打錯的答案、以及常常一起忘記的卡片找出可能的關聯。</p>';
+}
+function renderLinks() {
+  analyze(); renderChunks(); renderSugs();
+  $('#legend').innerHTML = Object.values(TYPES).map(t => `<span><i style="border-color:${t.color};${t.dash ? 'border-top-style:dashed' : ''}"></i>${t.name}</span>`).join('') + '<span><i style="border-color:var(--mut);border-top-style:dotted"></i>組塊成員</span>';
+  select(G.sel && byId(G.sel) ? G.sel : null, true);
+  requestAnimationFrame(initGraph);
+}
+
+/* ---------- 知識圖譜 ---------- */
+const G = { nodes: [], edges: [], pos: new Map(), ticks: 0, raf: 0, drag: null, tf: { s: 1, ox: 0, oy: 0 }, sel: null };
+const GINFO = '點節點看詳情，拖曳可移動。顏色代表目前記憶強度（紅 → 綠），灰色是還沒學的卡，外框粗的是組塊卡。';
+function initGraph() {
+  const cv = $('#graph'), r = cv.getBoundingClientRect(), dpr = devicePixelRatio || 1;
+  if (!r.width) return;
+  cv.width = r.width * dpr; cv.height = r.height * dpr;
+  G.nodes = db.cards.map(c => { let p = G.pos.get(c.id); if (!p) { p = { x: (Math.random() - .5) * 300, y: (Math.random() - .5) * 300, vx: 0, vy: 0 }; G.pos.set(c.id, p); } return { c, p }; });
+  const m = new Map(G.nodes.map(n => [n.c.id, n]));
+  G.edges = db.links.map(l => ({ type: l.type, a: m.get(l.a), b: m.get(l.b) })).filter(e => e.a && e.b);
+  for (const n of G.nodes) if (n.c.kind === 'chunk') for (const mid of n.c.members) { const mm = m.get(mid); if (mm) G.edges.push({ type: 'member', a: n, b: mm }); }
+  G.ticks = 0; if (!G.raf) loop();
+}
+function loop() {
+  G.raf = 0;
+  if (!$('#v-links').classList.contains('on')) return;
+  const run = G.ticks < 300 || G.drag;
+  if (run) { step(); G.ticks++; }
+  draw();
+  if (run) G.raf = requestAnimationFrame(loop);
+}
+function step() {
+  const N = G.nodes;
+  for (let i = 0; i < N.length; i++) {
+    const a = N[i].p;
+    for (let j = i + 1; j < N.length; j++) {
+      const b = N[j].p; let dx = a.x - b.x, dy = a.y - b.y; const d2 = dx * dx + dy * dy + 0.01;
+      if (d2 > 90000) continue;
+      const f = 900 / d2, d = Math.sqrt(d2); dx /= d; dy /= d;
+      a.vx += dx * f; a.vy += dy * f; b.vx -= dx * f; b.vy -= dy * f;
+    }
+  }
+  for (const e of G.edges) {
+    const a = e.a.p, b = e.b.p, dx = b.x - a.x, dy = b.y - a.y, d = Math.sqrt(dx * dx + dy * dy) || 1;
+    const f = (d - (e.type === 'member' ? 40 : 70)) * 0.02;
+    a.vx += dx / d * f; a.vy += dy / d * f; b.vx -= dx / d * f; b.vy -= dy / d * f;
+  }
+  for (const n of N) {
+    const p = n.p;
+    if (G.drag && G.drag.n === n) { p.vx = p.vy = 0; continue; }
+    p.vx -= p.x * 0.004; p.vy -= p.y * 0.004; p.vx *= 0.8; p.vy *= 0.8;
+    p.x += clamp(p.vx, -20, 20); p.y += clamp(p.vy, -20, 20);
+  }
+}
+function draw() {
+  const cv = $('#graph'), ctx = cv.getContext('2d'), W = cv.width, H = cv.height, dpr = devicePixelRatio || 1, t = now();
+  const fg = css('--fg'), mut = css('--mut'), acc = css('--acc');
+  ctx.clearRect(0, 0, W, H);
+  if (!G.nodes.length) { ctx.fillStyle = mut; ctx.font = `${14 * dpr}px system-ui,sans-serif`; ctx.textAlign = 'center'; ctx.fillText('還沒有卡片', W / 2, H / 2); return; }
+  if (!G.drag) {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const n of G.nodes) { x0 = Math.min(x0, n.p.x); y0 = Math.min(y0, n.p.y); x1 = Math.max(x1, n.p.x); y1 = Math.max(y1, n.p.y); }
+    const pad = 40 * dpr, s = Math.min((W - 2 * pad) / Math.max(x1 - x0, 1), (H - 2 * pad) / Math.max(y1 - y0, 1), 2.2 * dpr);
+    G.tf = { s, ox: W / 2 - (x0 + x1) / 2 * s, oy: H / 2 - (y0 + y1) / 2 * s };
+  }
+  const { s, ox, oy } = G.tf, X = p => p.x * s + ox, Y = p => p.y * s + oy;
+  for (const e of G.edges) {
+    const T = TYPES[e.type], x1 = X(e.a.p), y1 = Y(e.a.p), x2 = X(e.b.p), y2 = Y(e.b.p);
+    ctx.strokeStyle = T ? T.color : mut; ctx.globalAlpha = T ? 0.85 : 0.5; ctx.lineWidth = (T ? 1.6 : 1) * dpr;
+    ctx.setLineDash(T ? (T.dash || []).map(v => v * dpr) : [2 * dpr, 3 * dpr]);
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+    if (T && T.arrow) {
+      const ang = Math.atan2(y2 - y1, x2 - x1), r = (e.b.c.kind === 'chunk' ? 11 : 8) * dpr, hx = x2 - Math.cos(ang) * r, hy = y2 - Math.sin(ang) * r, a = 6 * dpr;
+      ctx.setLineDash([]); ctx.fillStyle = T.color; ctx.beginPath(); ctx.moveTo(hx, hy);
+      ctx.lineTo(hx - Math.cos(ang - 0.45) * a, hy - Math.sin(ang - 0.45) * a); ctx.lineTo(hx - Math.cos(ang + 0.45) * a, hy - Math.sin(ang + 0.45) * a);
+      ctx.closePath(); ctx.fill();
+    }
+  }
+  ctx.setLineDash([]);
+  for (const n of G.nodes) {
+    const c = n.c, x = X(n.p), y = Y(n.p), r = (c.kind === 'chunk' ? 9 : 6) * dpr;
+    ctx.globalAlpha = c.subsumed ? 0.4 : 1;
+    ctx.fillStyle = c.state === 'new' ? '#9aa2b2' : `hsl(${Math.round(retr(c, t) * 120)},65%,48%)`;
+    ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+    if (c.kind === 'chunk') { ctx.lineWidth = 2 * dpr; ctx.strokeStyle = fg; ctx.stroke(); }
+    if (G.sel === c.id) { ctx.globalAlpha = 1; ctx.lineWidth = 3 * dpr; ctx.strokeStyle = acc; ctx.beginPath(); ctx.arc(x, y, r + 4 * dpr, 0, 7); ctx.stroke(); }
+    if (G.nodes.length <= 60 || G.sel === c.id) { ctx.fillStyle = fg; ctx.font = `${11 * dpr}px system-ui,sans-serif`; ctx.textAlign = 'center'; ctx.fillText(short(c.front, 10), x, y + r + 13 * dpr); }
+  }
+  ctx.globalAlpha = 1;
+}
+function select(id, noDraw) {
+  G.sel = id; const c = id && byId(id);
+  $('#g-info').innerHTML = c ? `<b>${esc(c.front)}</b><br>${esc(short(c.back, 80))}<br>${cardMeta(c)}<br><button class="btn sm" data-act="edit" data-id="${c.id}" style="margin-top:6px">編輯／管理關聯</button>` : GINFO;
+  if (!noDraw) draw();
+}
+function hit(e) {
+  const cv = $('#graph'), r = cv.getBoundingClientRect(), dpr = devicePixelRatio || 1;
+  const sx = (e.clientX - r.left) * dpr, sy = (e.clientY - r.top) * dpr; let best = null, bd = (18 * dpr) ** 2;
+  for (const n of G.nodes) { const dx = n.p.x * G.tf.s + G.tf.ox - sx, dy = n.p.y * G.tf.s + G.tf.oy - sy, d = dx * dx + dy * dy; if (d < bd) { bd = d; best = n; } }
+  return best;
+}
+(() => {
+  const cv = $('#graph');
+  cv.addEventListener('pointerdown', e => {
+    const n = hit(e);
+    if (!n) { select(null); return; }
+    G.drag = { n, moved: false, x0: e.clientX, y0: e.clientY }; cv.setPointerCapture(e.pointerId); if (!G.raf) loop();
+  });
+  cv.addEventListener('pointermove', e => {
+    if (!G.drag) return;
+    if (Math.abs(e.clientX - G.drag.x0) + Math.abs(e.clientY - G.drag.y0) > 5) G.drag.moved = true;
+    if (!G.drag.moved) return;
+    const r = cv.getBoundingClientRect(), dpr = devicePixelRatio || 1;
+    G.drag.n.p.x = ((e.clientX - r.left) * dpr - G.tf.ox) / G.tf.s; G.drag.n.p.y = ((e.clientY - r.top) * dpr - G.tf.oy) / G.tf.s;
+  });
+  const up = () => { if (!G.drag) return; const d = G.drag; G.drag = null; if (!d.moved) select(d.n.c.id); G.ticks = Math.min(G.ticks, 240); if (!G.raf) loop(); };
+  cv.addEventListener('pointerup', up); cv.addEventListener('pointercancel', up);
+})();
+
+/* ---------- 統計與設定 ---------- */
+function renderStats() {
+  const cs = db.cards, t = now(), td = today(), n = s => cs.filter(c => c.state === s).length, rv = cs.filter(c => c.state === 'review');
+  const avgR = rv.length ? rv.reduce((a, c) => a + retr(c, t), 0) / rv.length : 0, done = td.rev + td.new;
+  const items = [[cs.length, '全部'], [n('new'), '新卡'], [n('learning'), '學習中'], [n('review'), '複習中'], [cs.filter(c => c.kind === 'chunk').length, '組塊卡'],
+    [cs.filter(c => c.S >= 21).length, '熟練（≥21 天）'], [rv.length ? Math.round(avgR * 100) + '%' : '—', '預估記憶保留'], [done, '今日複習'], [done ? Math.round((done - td.again) / done * 100) + '%' : '—', '今日答對率']];
+  $('#st').innerHTML = `<div class="stats">${items.map(([v, l]) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`).join('')}</div>`;
+  const d0 = dayStart(t), fc = [];
+  for (let i = 0; i < 14; i++) { const a = d0 + i * DAY, b = a + DAY; fc.push(cs.filter(c => c.state !== 'new' && (i === 0 ? c.due < b : c.due >= a && c.due < b)).length); }
+  const mx = Math.max(1, ...fc);
+  $('#fc').innerHTML = `<div class="bars">${fc.map(v => `<div style="height:${v / mx * 100}%"><em>${v || ''}</em></div>`).join('')}</div>
+    <div class="row mut" style="justify-content:space-between;font-size:11px;margin-top:4px"><span>今天</span><span>+7 天</span><span>+13 天</span></div>`;
+  const st = db.settings;
+  $('#s-new').value = st.dailyNew; $('#s-max').value = st.maxReviews; $('#s-ret').value = String(st.retention); $('#s-exam').value = st.examDate || ''; $('#s-rt').checked = !!st.rtCalib;
+}
+function saveSettings() {
+  const st = db.settings;
+  st.dailyNew = clamp(parseInt($('#s-new').value, 10) || 0, 0, 500);
+  st.maxReviews = clamp(parseInt($('#s-max').value, 10) || 120, 10, 5000);
+  st.retention = +$('#s-ret').value || 0.9; st.examDate = $('#s-exam').value || ''; st.rtCalib = $('#s-rt').checked;
+  save(); toast('設定已儲存');
+}
+function exportData() {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(db, null, 1)], { type: 'application/json' }));
+  a.download = `chunk-sr-${dayKey()}.json`; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+function importData(file) {
+  const r = new FileReader();
+  r.onload = () => {
+    try {
+      const s = JSON.parse(r.result); if (!s || !Array.isArray(s.cards)) throw new Error('格式不對');
+      if (!confirm(`匯入 ${s.cards.length} 張卡片，並取代目前的所有資料？`)) return;
+      const b = blank(); db = Object.assign(b, s, { settings: Object.assign(b.settings, s.settings || {}) });
+      reindex(); G.pos.clear(); save(); toast('匯入完成'); show(cur);
+    } catch (e) { toast('匯入失敗：' + e.message); }
+  };
+  r.readAsText(file);
+}
+function loadSample() {
+  if (db.cards.length && !confirm('把範例卡片加入現有資料？')) return;
+  const mk = (front, back, extra = {}) => { const c = newCard({ front, back, ...extra }); db.cards.push(c); return c; };
+  const bio = { tags: ['生物'] };
+  const atp = mk('ATP 在細胞中扮演什麼角色？', '細胞的「能量貨幣」，用來儲存與傳遞能量', bio);
+  const atp2 = mk('細胞的「能量貨幣」是什麼分子？', 'ATP（三磷酸腺苷）', bio);
+  const cr = mk('細胞呼吸', '把葡萄糖的化學能轉換成 ATP 的過程', bio);
+  const g1 = mk('細胞呼吸第 1 階段？', '糖解作用（細胞質；葡萄糖 → 丙酮酸）', { ...bio, variants: [{ q: '糖解作用在細胞的哪裡進行？', a: '細胞質' }] });
+  const g2 = mk('細胞呼吸第 2 階段？', '克氏循環（粒線體基質）', { ...bio, variants: [{ q: '克氏循環在哪裡進行？', a: '粒線體基質' }] });
+  const g3 = mk('細胞呼吸第 3 階段？', '電子傳遞鏈（粒線體內膜；產生最多 ATP）', { ...bio, variants: [{ q: '細胞呼吸中哪個階段產生最多 ATP？', a: '電子傳遞鏈' }] });
+  const mi = mk('有絲分裂的結果？', '2 個遺傳相同的二倍體細胞', bio);
+  const me = mk('減數分裂的結果？', '4 個遺傳不同的單倍體細胞', bio);
+  const af = mk('affect 通常是什麼詞性、什麼意思？', '動詞：影響', { tags: ['英文'] });
+  const ef = mk('effect 通常是什麼詞性、什麼意思？', '名詞：效果、影響', { tags: ['英文'] });
+  const by = mk('債券殖利率和價格的關係？', '反向變動', { tags: ['金融'] });
+  const ir = mk('市場利率上升時，既有債券的價格會？', '下跌（新債殖利率更高，舊債要降價才有人買）', { tags: ['金融'] });
+  addLink(atp.id, atp2.id, 'same'); addLink(atp.id, cr.id, 'prereq');
+  for (const g of [g1, g2, g3]) addLink(g.id, cr.id, 'part');
+  addLink(mi.id, me.id, 'confuse'); addLink(af.id, ef.id, 'confuse'); addLink(by.id, ir.id, 'prereq');
+  reindex(); save(); toast('已載入 12 張範例卡'); show(cur);
+}
+function resetAll() {
+  if (!confirm('確定清除所有卡片、關聯和紀錄？這無法復原（建議先匯出）。')) return;
+  db = blank(); reindex(); G.pos.clear(); S.items = []; S.cur = null; S.phase = 'home'; save(); show(cur);
+}
+
+/* ---------- 導覽與事件 ---------- */
+let cur = 'review';
+function show(v) {
+  cur = v;
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('on', b.dataset.v === v));
+  document.querySelectorAll('main section').forEach(s => s.classList.toggle('on', s.id === 'v-' + v));
+  if (v === 'review') renderReview(); else if (v === 'cards') renderCards(); else if (v === 'links') renderLinks(); else renderStats();
+}
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-act]'); if (!b) return;
+  const id = b.dataset.id;
+  switch (b.dataset.act) {
+    case 'tab': show(b.dataset.v); window.scrollTo(0, 0); break;
+    case 'start': startSession(); break;
+    case 'reveal': reveal(); break;
+    case 'grade': grade(+b.dataset.g); break;
+    case 'end': S.items = []; S.cur = null; S.phase = 'home'; renderReview(); break;
+    case 'edit': openEdit(id); break;
+    case 'addCard': addCard(); break;
+    case 'bulk': bulk(); break;
+    case 'sugOk': {
+      const s = db.suggest.find(x => x.id === id); if (!s) break;
+      const sel = document.querySelector(`[data-sel="${id}"]`);
+      applyRel(s.a, s.b, s.type === 'related' && sel ? sel.value : 'confuse:ab');
+      db.suggest = db.suggest.filter(x => x.id !== id); save(); toast('已建立關聯'); renderLinks(); break;
+    }
+    case 'sugNo': {
+      const s = db.suggest.find(x => x.id === id); if (!s) break;
+      db.dismissed.push(pairKey(s.a, s.b)); db.suggest = db.suggest.filter(x => x.id !== id); save(); renderSugs(); break;
+    }
+    case 'promote': {
+      const i = +b.dataset.i, c = CANDS[i]; if (!c) break;
+      const label = ($('#ch-l-' + i).value || c.label || '組塊').trim();
+      promote(c, label, $('#ch-o-' + i).checked); toast('已建立組塊卡；成員卡單獨複習的間隔拉長為 3 倍'); renderLinks(); break;
+    }
+    case 'dlgClose': $('#dlg').close(); break;
+    case 'dlgSave': dlgSave(); break;
+    case 'dlgDel': dlgDel(); break;
+    case 'linkDel': db.links = db.links.filter(l => l.id !== id); save(); renderEditLinks(); break;
+    case 'linkAdd':
+      if (applyRel(editId, id, $('#e-rel').value)) { save(); toast('已建立關聯'); } else toast('這個關聯已經存在');
+      $('#e-q').value = ''; renderEditSearch(); renderEditLinks(); break;
+    case 'export': exportData(); break;
+    case 'import': $('#file').click(); break;
+    case 'sample': loadSample(); break;
+    case 'reset': resetAll(); break;
+  }
+});
+document.addEventListener('change', e => {
+  const t = e.target;
+  if (t.dataset && t.dataset.ci != null && S.checks) { S.checks[+t.dataset.ci] = t.checked; renderReview(); }
+  else if (t.id && t.id.startsWith('s-')) saveSettings();
+  else if (t.id === 'file' && t.files[0]) { importData(t.files[0]); t.value = ''; }
+});
+document.addEventListener('input', e => {
+  if (e.target.id === 'c-search') renderCards();
+  else if (e.target.id === 'e-q') renderEditSearch();
+});
+$('#dlg').addEventListener('close', () => {
+  if (cur === 'cards') renderCards(); else if (cur === 'links') renderLinks(); else if (cur === 'stats') renderStats();
+  else if (S.phase === 'home') renderReview();
+});
+document.addEventListener('keydown', e => {
+  if ($('#dlg').open || cur !== 'review' || !S.cur) return;
+  const inInput = e.target.matches('input,textarea,select');
+  if (S.phase === 'q' && (e.key === 'Enter' || (e.key === ' ' && !inInput))) { e.preventDefault(); reveal(); }
+  else if (S.phase === 'a' && !inInput && /^[1-4]$/.test(e.key)) grade(+e.key);
+  else if (S.phase === 'a' && !inInput && (e.key === ' ' || e.key === 'Enter')) { e.preventDefault(); const sg = suggestGrade(byId(S.cur.id)); if (sg) grade(sg); }
+});
+let rz; addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { if (cur === 'links') initGraph(); }, 200); });
+
+show('review');
+</script>
+</body>
+</html>
